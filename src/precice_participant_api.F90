@@ -284,18 +284,18 @@ contains
 
     end subroutine
 
-    subroutine requiresGradientDataFor(self,meshName,dataName)
+    logical function requiresGradientDataFor(self,meshName,dataName)
         class(Participant), intent(in) :: self
         character(len=*), intent(in) :: meshName, dataName
-        call pfapi_requiresGradientDataFor(self%ptr,meshName,dataName)
-    end subroutine
+        requiresGradientDataFor = pfapi_requiresGradientDataFor(self%ptr,meshName,dataName)
+    end function
 
     subroutine writeGradientData(self,meshName,dataName,ids,gradients)
         class(Participant), intent(inout) :: self
         character(len=*), intent(in) :: meshName, dataName
         integer, intent(in), contiguous :: ids(:)
         real(c_double), intent(in), contiguous :: gradients(:)
-        call pfapi_writeGradientData(self%ptr,meshName,dataName,ids,gradients)
+        call pfapi_writeGradientData(self%ptr,meshName,dataName,size(ids),ids,gradients)
     end subroutine
 
 end module

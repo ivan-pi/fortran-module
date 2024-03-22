@@ -96,7 +96,7 @@ interface
         logical(c_bool) :: pfapi_requiresMeshConnectivityFor
     end function
 
-    pure function pfapi_getMeshVertexSize(ph,meshname)
+    pure function pfapi_getMeshVertexSize(ph,meshname) bind(c)
         use iso_c_binding, only: c_ptr, c_int
         implicit none
         type(c_ptr), value :: ph
@@ -133,7 +133,7 @@ interface
         real(c_double), intent(in) :: bbox(*)
     end subroutine
 
-    subroutine pfapi_getMeshVertexIdsAndCoordinates(ph,meshname,d,sz,ids,coords)
+    subroutine pfapi_getMeshVertexIdsAndCoordinates(ph,meshname,d,sz,ids,coords) bind(c)
         use iso_c_binding, only: c_ptr, c_int, c_double
         implicit none
         type(c_ptr), value :: ph
@@ -146,5 +146,22 @@ interface
 !
 ! Gradient Data (Experimental)
 !
+    function pfapi_requiresGradientDataFor(ph,meshName,dataName) bind(c)
+        use iso_c_binding, only: c_ptr, c_char, c_bool
+        implicit none        
+        type(c_ptr), value :: ph
+        character(len=*,kind=c_char), intent(in) :: meshName, dataName
+        logical(c_bool) :: pfapi_requiresGradientDataFor
+    end function
+
+    subroutine pfapi_writeGradientData(ph,meshName,dataName,sz,idxs,gradients) bind(c)
+        use iso_c_binding, only: c_ptr, c_int, c_char, c_double
+        implicit none
+        type(c_ptr), value :: ph
+        character(len=*,kind=c_char), intent(in) :: meshName, dataName
+        integer(c_int), value :: sz
+        integer, intent(in) :: idxs(*)
+        real(c_double), intent(in) :: gradients(*)
+    end subroutine
 
 end interface

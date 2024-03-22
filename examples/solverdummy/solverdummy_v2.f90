@@ -6,11 +6,11 @@ implicit none
 ! the participant type encapsulates the precice coupling interface
 type(participant) :: mediator
 
+! helper struct for storing command line arguments
 type :: cmdargs
     character(len=64) :: config, participant
     character(len=64) :: meshname, readdata, writedata
 end type
-
 type(cmdargs) :: args
 
 ! >>>>   execution starts here   <<<<
@@ -19,24 +19,24 @@ write(*,'(A)') 'dummy: starting fortran solver dummy...'
 
 args = default_args()
 
-mediator = participant(
-    participantName = args%participant_name, &
-    participantConfig = args%config, &
+mediator = participant( &
+    participantName = args%participant, &
+    configurationFileName = args%config, &
     solverProcessIndex = 0, &
     solverProcessSize = 1)
 
-call run_dummy_solver(nvert=3, &
-    meshname=args%meshname,
-    writedata=args%writedata,
-    readdata=args%readdata)
+call run_dummy_solver(nvert = 3, &
+    meshname = args%meshname, &
+    writedata = args%writedata, &
+    readdata = args%readdata)
 
-    write (*,'(A)') 'dummy: closing fortran solver dummy...'
+write (*,'(A)') 'dummy: closing fortran solver dummy...'
 
 ! >>>>   execution ends here   <<<<
 
 contains
 
-    function default_args()
+    function default_args() result(args)
         type(cmdargs) :: args
 
         call get_command_argument(1, args%config)
@@ -47,7 +47,7 @@ contains
             args%writedata = 'data-one'
             args%readdata = 'data-two'
             args%meshname = 'solverone-mesh'
-        else if (participant_name == 'solvertwo') then
+        else if (args%participant == 'solvertwo') then
             write(*,'(A)') 'solvertwo'
             args%writedata = 'data-two'
             args%readdata = 'data-one'
@@ -57,6 +57,7 @@ contains
         end if
 
     end function
+
 
     subroutine run_dummy_solver(nvert,meshname,writedata,readdata)
         implicit none
