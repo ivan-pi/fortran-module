@@ -193,5 +193,25 @@ void pfapi_writegradientdata(PHandle ph,
 }
 
 
+void pfapi_setmeshaccessregion(PHandle ph, 
+    CFI_cdesc_t * meshName,
+    const double *boundingBox)
+{
+    auto p = static_cast<Participant *>(ph);
+    auto mname = view(meshName);
+    auto bbSize = static_cast<long unsigned>(p->getMeshDimensions(mname)) * 2;
+    p->setMeshAccessRegion(mname, {boundingBox, bbSize});
+}
+
+void pfapi_getmeshvertexidsandcoordinates(PHandle ph, 
+    CFI_cdesc_t *meshName,
+    size_t sz_ids,
+    int * ids,
+    size_t sz_coords,
+    double * coords)
+{
+    auto p = static_cast<Participant *>(ph);
+    p->getMeshVertexIDsAndCoordinates(view(meshName), {ids, sz_ids}, {coords, sz_coords});
+}
 
 } // extern "C"

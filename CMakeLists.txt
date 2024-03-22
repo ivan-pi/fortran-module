@@ -17,5 +17,9 @@ target_link_libraries(precice_pfapi PUBLIC /usr/local/lib/libprecice.dylib)
 add_library(precice-fortran src/precice_participant_api.F90)
 target_link_libraries(precice-fortran PRIVATE precice_pfapi)
 
-add_executable(test_api src/test_api.f90)
-target_link_libraries(test_api PUBLIC precice-fortran)
+add_executable(precice_demo src/precice_demo.f90)
+target_link_libraries(precice_demo PUBLIC precice-fortran)
+
+
+add_executable(solverdummy_v2 examples/solverdummy/solverdummy_v2.f90)
+target_link_libraries(solverdummy_v2 PUBLIC precice-fortran)

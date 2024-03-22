@@ -5,7 +5,7 @@ use, intrinsic :: iso_c_binding
 implicit none
 private
 
-public :: participant
+public :: participant, dp 
 
 type :: participant
     private
@@ -73,18 +73,11 @@ integer, parameter :: VertexId = c_int
 !
 ! custom C bindings (using F2018 features)
 ! 
-interface
-    function pfapi_default_participant( participantName, &
-                                        configurationFileName, &
-                                        solverProcessIndex, &
-                                        solverProcessSize) bind(c)
-        use iso_c_binding, only: c_ptr, c_int
-        implicit none
-        character(len=*), intent(in) :: participantName, configurationFileName
-        integer(c_int), value :: solverProcessIndex, solverProcessSize
-        type(c_ptr) :: pfapi_default_participant
-    end function
+include "pfapi.fi"
+
+! MPI functions
 #if defined(WITH_MPI)
+interface
     function pfapi_mpi_participant( participantName, &
                                     configurationFileName, &
                                     solverProcessIndex, &
@@ -97,86 +90,9 @@ interface
         integer :: comm
         type(c_ptr) :: pfapi_mpi_participant
     end function
-#endif
-    subroutine pfapi_initialize(ph) bind(c)
-        use iso_c_binding, only: c_ptr
-        implicit none
-        type(c_ptr), value :: ph
-    end subroutine
-    subroutine pfapi_advance(ph,computedTimeStepSize) bind(c)
-        use iso_c_binding, only: c_ptr, c_double
-        implicit none
-        type(c_ptr), value :: ph
-        real(c_double), value :: computedTimeStepSize
-    end subroutine
-    subroutine pfapi_finalize(ph) bind(c)
-        use iso_c_binding, only: c_ptr
-        implicit none
-        type(c_ptr), value :: ph
-    end subroutine
-    pure function pfapi_getMeshDimensions(ph,meshName) bind(c)
-        use iso_c_binding, only: c_ptr, c_int
-        implicit none
-        type(c_ptr), value :: ph
-        character(len=*), intent(in) :: meshName
-        integer(c_int) :: pfapi_getMeshDimensions 
-    end function
-    pure function pfapi_getDataDimensions(ph,meshName,dataName) bind(c)
-        use iso_c_binding, only: c_ptr, c_int
-        implicit none
-        type(c_ptr), value :: ph
-        character(len=*), intent(in) :: meshName, dataName
-        integer(c_int) :: pfapi_getDataDimensions 
-    end function
-    pure function pfapi_isCouplingOngoing(ph) bind(c)
-        use iso_c_binding, only: c_ptr, c_bool
-        implicit none
-        type(c_ptr), value :: ph
-        logical(c_bool) :: pfapi_isCouplingOngoing
-    end function
-    pure function pfapi_isTimeWindowComplete(ph) bind(c)
-        use iso_c_binding, only: c_ptr, c_bool
-        implicit none
-        type(c_ptr), value :: ph
-        logical(c_bool) :: pfapi_isTimeWindowComplete
-    end function
-    pure function pfapi_getMaxTimeStepSize(ph) bind(c)
-        use iso_c_binding, only: c_ptr, c_double
-        implicit none
-        type(c_ptr), value :: ph
-        real(c_double) :: pfapi_getMaxTimeStepSize
-    end function
-    pure function pfapi_requiresInitialData(ph) bind(c)
-        use iso_c_binding, only: c_ptr, c_bool
-        implicit none
-        type(c_ptr), value :: ph
-        logical(c_bool) :: pfapi_requiresInitialData
-    end function
-    pure function pfapi_requiresWritingCheckPoint(ph) bind(c)
-        use iso_c_binding, only: c_ptr, c_bool
-        implicit none
-        type(c_ptr), value :: ph
-        logical(c_bool) :: pfapi_requiresWritingCheckPoint
-    end function
-    pure function pfapi_requiresReadingCheckPoint(ph) bind(c)
-        use iso_c_binding, only: c_ptr, c_bool
-        implicit none
-        type(c_ptr), value :: ph
-        logical(c_bool) :: pfapi_requiresReadingCheckPoint
-    end function
-    pure function pfapi_requiresMeshConnectivityFor(ph) bind(c)
-        use iso_c_binding, only: c_ptr, c_bool
-        implicit none
-        type(c_ptr), value :: ph
-        logical(c_bool) :: pfapi_requiresMeshConnectivityFor
-    end function
-    pure function pfapi_setMeshVertex(ph) bind(c)
-        use iso_c_binding, only: c_ptr, c_int
-        implicit none
-        type(c_ptr), value :: ph
-        integer(c_int) :: pfapi_setMeshVertex
-    end function
 end interface
+#endif
+
 
 contains
 
@@ -209,12 +125,18 @@ contains
     end function
 #endif
 
+! 
+! Finalizer
+!
     subroutine destroy_participant(self)
         type(Participant), intent(inout) :: self
         call pfapi_finalize(self%ptr)
         self%ptr = c_null_ptr
     end subroutine
 
+!
+! Steering Methods
+!
     subroutine initialize(self)
         class(Participant), intent(inout) :: self
         call pfapi_initialize(self%ptr)
@@ -224,20 +146,21 @@ contains
         real(c_double), intent(in) :: computedTimeStepSize
         call pfapi_advance(self%ptr,computedTimeStepSize)
     end subroutine
-
     subroutine finalize(self)
         class(Participant), intent(inout) :: self
         call pfapi_finalize(self%ptr)
     end subroutine
 
-    ! bool  requiresWritingCheckpoint ()
+!
+! Status Queries
+!
     logical function requiresWritingCheckpoint(self)
         class(Participant), intent(in) :: self
+        requiresWritingCheckpoint = pfapi_requiresWritingCheckpoint(self%ptr)
     end function
-
-    ! bool  requiresReadingCheckpoint ()
     logical function requiresReadingCheckPoint(self)
         class(Participant), intent(in) :: self
+        requiresReadingCheckpoint = pfapi_requiresReadingCheckpoint(self%ptr)
     end function
 
 !
@@ -291,8 +214,10 @@ contains
     subroutine setMeshVertices(self,meshName,coordinates,ids)
         class(Participant), intent(in) :: self
         character(len=*), intent(in) :: meshName
-        real(c_double), intent(in) :: coordinates(:)
-        integer(VertexId), intent(out) :: ids(:)    
+        real(c_double), intent(in), contiguous :: coordinates(:,:)
+        integer(VertexId), intent(in), contiguous :: ids(:)
+
+        !call pfapi_setMeshVertices(self%ptr,meshName,d,sz,coordinates,ids)   
     end subroutine
 
 
@@ -307,35 +232,62 @@ contains
     subroutine writeData(self,meshName,dataName,ids,values)
         class(Participant), intent(inout) :: self
         character(len=*), intent(in) :: meshName, dataName
-        integer(VertexId), intent(in) :: ids(:)
-        real(c_double), intent(in) :: values(:)
+        integer(VertexId), intent(in), contiguous :: ids(:)
+        real(c_double), intent(in), contiguous :: values(:,:)
     end subroutine
 
     subroutine readData(self,meshName,dataName,ids,relativeReadTime,values)
         class(Participant), intent(in) :: self
         character(len=*), intent(in) :: meshName, dataName
-        integer(VertexId), intent(in) :: ids(:)
+        integer(VertexId), intent(in), contiguous :: ids(:)
         real(c_double), intent(in) :: relativeReadTime
-        real(c_double), intent(inout) :: values(:)
+        real(c_double), intent(inout), contiguous :: values(:,:)
     end subroutine
 
+!
+! Direct Access
+!
 
     subroutine setMeshAccessRegion(self,meshName,boundingBox)
         class(Participant), intent(in) :: self
         character(len=*), intent(in) :: meshName
-        real(c_double), intent(in) :: boundingBox(:)
+        real(c_double), intent(in) :: boundingBox(*)
+        call pfapi_setMeshAccessRegion(self%ptr,meshName,boundingBox)
+    end subroutine
+    subroutine setMeshAccessRegion_xyz(self,meshName,xlim,ylim,zlim)
+        class(Participant), intent(in) :: self
+        character(len=*), intent(in) :: meshName
+        real(c_double), intent(in) :: xlim(2), ylim(2), zlim(2)
+
+        real(c_double) :: bbox(6)
+        bbox = [xlim, ylim, zlim]
+
+        call pfapi_setMeshAccessRegion(self%ptr,meshName,bbox)
     end subroutine
 
     subroutine getMeshVertexIDsAndCoordinates(self,meshName,ids,coordinates)
         class(Participant), intent(in) :: self
         character(len=*), intent(in) :: meshName
-        integer(VertexId), intent(in) :: ids(:)
-        real(c_double), intent(inout) :: coordinates(:)
+        integer(VertexId), intent(out), allocatable :: ids(:)
+        real(c_double), intent(out), allocatable :: coordinates(:,:)
+
+        integer :: sz, dim
+
+        sz = pfapi_getMeshVertexSize(self%ptr, meshName)
+        dim = pfapi_getMeshDimensions(self%ptr, meshName)
+
+        allocate(ids(sz), coordinates(dim,sz))
+
+        call pfapi_getMeshVertexIdsAndCoordinates(self%ptr, &
+            meshname, &
+            dim,sz,ids,coordinates)
+
     end subroutine
 
     subroutine requiresGradientDataFor(self,meshName,dataName)
         class(Participant), intent(in) :: self
         character(len=*), intent(in) :: meshName, dataName
+        call pfapi_requiresGradientDataFor(self%ptr,meshName,dataName)
     end subroutine
 
     subroutine writeGradientData(self,meshName,dataName,ids,gradients)
@@ -343,27 +295,9 @@ contains
         character(len=*), intent(in) :: meshName, dataName
         integer, intent(in), contiguous :: ids(:)
         real(c_double), intent(in), contiguous :: gradients(:)
+        call pfapi_writeGradientData(self%ptr,meshName,dataName,ids,gradients)
     end subroutine
 
 end module
 
-! module precice_tooling
-! implicit none
 
-! enum, bind(c)
-!     enumerator :: XML = 0
-!     enumerator :: DTD = 1
-!     enumerator :: MD  = 2
-! end enum
-
-! integer, parameter :: ConfigReferenceType = kind(XML)
-
-! contains
-
-!     subroutine printConfigReference(unit,reftype)
-!     end subroutine
-
-!     subroutine checkConfiguration(filename,participant,size)
-!     end subroutine
-
-! end module

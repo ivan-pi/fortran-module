@@ -1,0 +1,150 @@
+!
+! preprocessor directives can't be part of include files
+!
+interface
+
+! 
+! Object Creation
+!
+    function pfapi_default_participant( participantName, &
+                                        configurationFileName, &
+                                        solverProcessIndex, &
+                                        solverProcessSize) bind(c)
+        use iso_c_binding, only: c_ptr, c_int
+        implicit none
+        character(len=*), intent(in) :: participantName, configurationFileName
+        integer(c_int), value :: solverProcessIndex, solverProcessSize
+        type(c_ptr) :: pfapi_default_participant
+    end function
+!
+! Steering Methods
+!
+    subroutine pfapi_initialize(ph) bind(c)
+        use iso_c_binding, only: c_ptr
+        implicit none
+        type(c_ptr), value :: ph
+    end subroutine
+    subroutine pfapi_advance(ph,computedTimeStepSize) bind(c)
+        use iso_c_binding, only: c_ptr, c_double
+        implicit none
+        type(c_ptr), value :: ph
+        real(c_double), value :: computedTimeStepSize
+    end subroutine
+    subroutine pfapi_finalize(ph) bind(c)
+        use iso_c_binding, only: c_ptr
+        implicit none
+        type(c_ptr), value :: ph
+    end subroutine
+!
+! Implicit Coupling
+!
+    pure function pfapi_requiresWritingCheckPoint(ph) bind(c)
+        use iso_c_binding, only: c_ptr, c_bool
+        implicit none
+        type(c_ptr), value :: ph
+        logical(c_bool) :: pfapi_requiresWritingCheckPoint
+    end function
+    pure function pfapi_requiresReadingCheckPoint(ph) bind(c)
+        use iso_c_binding, only: c_ptr, c_bool
+        implicit none
+        type(c_ptr), value :: ph
+        logical(c_bool) :: pfapi_requiresReadingCheckPoint
+    end function
+!
+! State Queries
+!
+    pure function pfapi_getMeshDimensions(ph,meshName) bind(c)
+        use iso_c_binding, only: c_ptr, c_int
+        implicit none
+        type(c_ptr), value :: ph
+        character(len=*), intent(in) :: meshName
+        integer(c_int) :: pfapi_getMeshDimensions 
+    end function
+    pure function pfapi_getDataDimensions(ph,meshName,dataName) bind(c)
+        use iso_c_binding, only: c_ptr, c_int
+        implicit none
+        type(c_ptr), value :: ph
+        character(len=*), intent(in) :: meshName, dataName
+        integer(c_int) :: pfapi_getDataDimensions 
+    end function
+    pure function pfapi_isCouplingOngoing(ph) bind(c)
+        use iso_c_binding, only: c_ptr, c_bool
+        implicit none
+        type(c_ptr), value :: ph
+        logical(c_bool) :: pfapi_isCouplingOngoing
+    end function
+    pure function pfapi_isTimeWindowComplete(ph) bind(c)
+        use iso_c_binding, only: c_ptr, c_bool
+        implicit none
+        type(c_ptr), value :: ph
+        logical(c_bool) :: pfapi_isTimeWindowComplete
+    end function
+    pure function pfapi_getMaxTimeStepSize(ph) bind(c)
+        use iso_c_binding, only: c_ptr, c_double
+        implicit none
+        type(c_ptr), value :: ph
+        real(c_double) :: pfapi_getMaxTimeStepSize
+    end function
+
+!
+! Mesh Access
+!
+    pure function pfapi_requiresMeshConnectivityFor(ph) bind(c)
+        use iso_c_binding, only: c_ptr, c_bool
+        implicit none
+        type(c_ptr), value :: ph
+        logical(c_bool) :: pfapi_requiresMeshConnectivityFor
+    end function
+
+    pure function pfapi_getMeshVertexSize(ph,meshname)
+        use iso_c_binding, only: c_ptr, c_int
+        implicit none
+        type(c_ptr), value :: ph
+        character(len=*), intent(in) :: meshname
+        integer(c_int) :: pfapi_getMeshVertexSize
+    end function
+
+    pure function pfapi_setMeshVertex(ph) bind(c)
+        use iso_c_binding, only: c_ptr, c_int
+        implicit none
+        type(c_ptr), value :: ph
+        integer(c_int) :: pfapi_setMeshVertex
+    end function
+
+
+!
+! Data Access
+!
+    pure function pfapi_requiresInitialData(ph) bind(c)
+        use iso_c_binding, only: c_ptr, c_bool
+        implicit none
+        type(c_ptr), value :: ph
+        logical(c_bool) :: pfapi_requiresInitialData
+    end function
+
+!
+! Direct Access
+!
+    subroutine pfapi_setMeshAccessRegion(ph,meshname,bbox) bind(c)
+        use iso_c_binding, only: c_ptr, c_int, c_double
+        implicit none
+        type(c_ptr), value :: ph
+        character(len=*), intent(in) :: meshname
+        real(c_double), intent(in) :: bbox(*)
+    end subroutine
+
+    subroutine pfapi_getMeshVertexIdsAndCoordinates(ph,meshname,d,sz,ids,coords)
+        use iso_c_binding, only: c_ptr, c_int, c_double
+        implicit none
+        type(c_ptr), value :: ph
+        character(len=*), intent(in) :: meshname
+        integer(c_int), value :: d, sz
+        integer(c_int), intent(out) :: ids(sz)
+        real(c_double), intent(out) :: coords(d, sz)
+    end subroutine
+
+!
+! Gradient Data (Experimental)
+!
+
+end interface
