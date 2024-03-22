@@ -10,7 +10,7 @@ IF(precice_FOUND)
 
 ENDIF(precice_FOUND)
 
-add_library(precice_pfapi src/precice_participant_api_impl.cpp)
+add_library(precice_pfapi src/pfapi.cpp)
 target_include_directories(precice_pfapi PRIVATE /usr/local/include)
 target_link_libraries(precice_pfapi PUBLIC /usr/local/lib/libprecice.dylib)
 

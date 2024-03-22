@@ -3,55 +3,65 @@ program main
 use precice_participant_api, only: participant, dp
 implicit none
 
-! This derived type encapsulates the precice coupling interface
+! the participant type encapsulates the precice coupling interface
 type(participant) :: mediator
 
-character(len=64) :: config, participant_name
-character(len=64) :: mesh_name, rdata_name, wdata_name
+type :: cmdargs
+    character(len=64) :: config, participant
+    character(len=64) :: meshname, readdata, writedata
+end type
+
+type(cmdargs) :: args
 
 ! >>>>   execution starts here   <<<<
 
-    write(*,'(A)') 'dummy: starting fortran solver dummy...'
-    call get_command_argument(1, config)
-    call get_command_argument(2, participant_name)
+write(*,'(A)') 'dummy: starting fortran solver dummy...'
 
-    ! Echo arguments to the output unit
-    write(*,'(A)') 'config: '//config
-    write(*,'(A)') 'participant: '//participant_name
+args = default_args()
 
-    if (participant_name == 'solverone') then
-        write(*,'(A)') "solverone"
-        wdata_name = 'data-one'
-        rdata_name = 'data-two'
-        mesh_name = 'solverone-mesh'
-    else if (participant_name == 'solvertwo') then
-        write(*,'(A)') "solvertwo"
-        wdata_name = 'data-two'
-        rdata_name = 'data-one'
-        mesh_name = 'solvertwo-mesh'
-    else
-        error stop 'dummy: error - unknown participant'
-    end if
+mediator = participant(
+    participantName = args%participant_name, &
+    participantConfig = args%config, &
+    solverProcessIndex = 0, &
+    solverProcessSize = 1)
 
-    !
-    ! Create the coupling mediator
-    !
-    mediator = participant(participant_name,config, &
-        solverProcessIndex = 0, &
-        solverProcessSize = 1)
+call run_dummy_solver(nvert=3, &
+    meshname=args%meshname,
+    writedata=args%writedata,
+    readdata=args%readdata)
 
-    !
-    ! Run the simulation
-    !
-    call run(nvert=3)
+    write (*,'(A)') 'dummy: closing fortran solver dummy...'
 
 ! >>>>   execution ends here   <<<<
 
 contains
 
-    subroutine run(nvert)
+    function default_args()
+        type(cmdargs) :: args
+
+        call get_command_argument(1, args%config)
+        call get_command_argument(2, args%participant)
+
+        if (args%participant == 'solverone') then
+            write(*,'(A)') 'solverone'
+            args%writedata = 'data-one'
+            args%readdata = 'data-two'
+            args%meshname = 'solverone-mesh'
+        else if (participant_name == 'solvertwo') then
+            write(*,'(A)') 'solvertwo'
+            args%writedata = 'data-two'
+            args%readdata = 'data-one'
+            args%meshname = 'solvertwo-mesh'
+        else
+            error stop 'error: unknown participant'
+        end if
+
+    end function
+
+    subroutine run_dummy_solver(nvert,meshname,writedata,readdata)
         implicit none
         integer, intent(in) :: nvert
+        character(len=*), intent(in) :: meshname, writedata, readdata
 
         real(dp), allocatable :: vertices(:,:)
         real(dp), allocatable :: wdata(:,:), rdata(:,:)
@@ -60,12 +70,12 @@ contains
         integer :: d, i, j
         real(dp) :: dt
 
-        d = mediator%getMeshDimensions(mesh_name)
+        d = mediator%getMeshDimensions(meshname)
         allocate(vertices(d,nvert), ids(nvert))
         allocate(rdata(d,nvert), wdata(d,nvert))
 
         !
-        ! Prepare mock mesh
+        ! Prepare mock mesh and data
         !
         do i = 1, nvert
           do j = 1, d
@@ -76,7 +86,7 @@ contains
           ids(i) = i - 1
         end do
 
-        call mediator%setMeshVertices(mesh_name, vertices, ids)
+        call mediator%setMeshVertices(meshname, vertices, ids)
 
         if (mediator%requiresInitialData()) then
             write(*,'(A)') 'dummy: writing initial data'
@@ -94,11 +104,10 @@ contains
             end if
 
             dt = mediator%getMaxTimestepSize()
-
-            call mediator%readData(mesh_name,rdata_name,ids, dt, rdata)
+            call mediator%readData(meshname,readdata,ids,dt,rdata)
             write(*,'(A,*(G0))') 'readdata: ', rdata
             wdata = rdata + 1
-            call mediator%writeData(mesh_name,wdata_name,ids,wdata)
+            call mediator%writeData(meshname,writedata,ids,wdata)
 
             call mediator%advance(dt)
 
@@ -114,7 +123,6 @@ contains
         ! Finalization
         !
         call mediator%finalize()
-        write (*,'(A)') 'dummy: closing fortran solver dummy...'
 
     end subroutine
 
