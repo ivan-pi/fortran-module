@@ -4,7 +4,7 @@ use precice_participant_api, only: participant, dp
 implicit none
 
 ! This derived type encapsulates the precice coupling interface
-type(participant) :: solver
+type(participant) :: mediator
 
 character(len=64) :: config, participant_name
 character(len=64) :: mesh_name, rdata_name, wdata_name
@@ -34,9 +34,9 @@ character(len=64) :: mesh_name, rdata_name, wdata_name
     end if
 
     !
-    ! Create the coupled solver
+    ! Create the coupling mediator
     !
-    solver = participant(participant_name,config, &
+    mediator = participant(participant_name,config, &
         solverProcessIndex = 0, &
         solverProcessSize = 1)
 
@@ -60,7 +60,7 @@ contains
         integer :: d, i, j
         real(dp) :: dt
 
-        d = solver%getMeshDimensions(mesh_name)
+        d = mediator%getMeshDimensions(mesh_name)
         allocate(vertices(d,nvert), ids(nvert))
         allocate(rdata(d,nvert), wdata(d,nvert))
 
@@ -76,33 +76,33 @@ contains
           ids(i) = i - 1
         end do
 
-        call solver%setMeshVertices(mesh_name, vertices, ids)
+        call mediator%setMeshVertices(mesh_name, vertices, ids)
 
-        if (solver%requiresInitialData()) then
+        if (mediator%requiresInitialData()) then
             write(*,'(A)') 'dummy: writing initial data'
         end if
 
-        call solver%initialize()
+        call mediator%initialize()
 
         !
         ! Time loop
         !
-        do while (solver%isCouplingOngoing())
+        do while (mediator%isCouplingOngoing())
 
-            if (solver%requiresWritingCheckpoint()) then
+            if (mediator%requiresWritingCheckpoint()) then
                 write(*,'(A)') 'dummy: writing iteration checkpoint'
             end if
 
-            dt = solver%getMaxTimestepSize()
+            dt = mediator%getMaxTimestepSize()
 
-            call solver%readData(mesh_name,rdata_name,ids, dt, rdata)
+            call mediator%readData(mesh_name,rdata_name,ids, dt, rdata)
             write(*,'(A,*(G0))') 'readdata: ', rdata
             wdata = rdata + 1
-            call solver%writeData(mesh_name,wdata_name,ids,wdata)
+            call mediator%writeData(mesh_name,wdata_name,ids,wdata)
 
-            call solver%advance(dt)
+            call mediator%advance(dt)
 
-            if (solver%requiresReadingCheckpoint()) then
+            if (mediator%requiresReadingCheckpoint()) then
                 write(*,'(A)') 'dummy: reading iteration checkpoint'
             else
                 write(*,'(A)') 'dummy: advancing in time'
@@ -113,7 +113,7 @@ contains
         !
         ! Finalization
         !
-        call solver%finalize()
+        call mediator%finalize()
         write (*,'(A)') 'dummy: closing fortran solver dummy...'
 
     end subroutine
